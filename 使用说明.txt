@@ -1,0 +1,58 @@
+folder-encrypt 文件夹加密压缩工具 v3
+2026-09-23
+
+一、用法
+把文件夹拖到 folder-encrypt.exe 的图标上，或者在命令行执行：
+    folder-encrypt.exe <文件夹路径>
+可以一次拖入多个文件夹，逐个处理。
+
+二、规则
+文件夹名必须以 8 位日期开头，例如 20260812会议评审资料。
+程序取这 8 位数字当密码，在文件夹的上级目录生成同名的 .7z 文件。
+文件夹名不符合规则、或者路径不是文件夹时会给出提示并停下。
+
+三、加密方式
+采用 7z 容器 + AES-256 加密，并把文件清单一并加密（头部加密）。
+不输入密码时，连压缩包里有哪些文件名都看不到，输入密码后才能看到清单并解压。
+这是原版用 WinRAR 的 -hp 参数才有的能力，现在由程序自己实现。
+
+压缩用 LZMA2 1 级。py7zr 默认是 7 级加 EXTREME，实测比 5 级还慢、体积反而略大，
+纯属白花时间。换成 1 级后，38.3MB / 798 个文件的样本从 15.5 秒降到 4.8 秒（快约 3 倍），
+代价是压缩包从 8.68MB 涨到 11.96MB（大约多 38%）。
+想改级别就改源码顶部的 COMPRESS_PRESET 再重打包，输出格式与接收方兼容性不受影响。
+
+需要留意的固定开销：单文件 exe 每次运行要先解包 11.8MB 到临时目录，约 1.1 秒，
+小文件夹会明显感到这一下。改成文件夹式打包可降到 0.55 秒，但就不再是单文件。
+
+四、怎么打开
+7-Zip、WinRAR、Bandizip、PeaZip 等都能解密，输入密码后即可看到文件清单并解压。
+Windows 资源管理器自带的解压不支持加密的 7z，会报错，这点要告知接收方。
+
+五、相对原版的改动
+1. 不再依赖 WinRAR，不需要安装 Python，单个 exe 直接运行；文件名加密能力保留。
+2. 原版把 C:\Program Files\WinRAR\Rar.exe 写死，WinRAR 装在别处就报错，现已去掉。
+3. 原版先删掉同名旧包再压缩，压缩失败旧文件就没了；现在先写 .part 临时文件，
+   成功后才覆盖，失败则保留原文件。
+4. 密码不再通过命令行传给外部程序，进程列表里看不到。
+5. 单个文件读不了时跳过并列出，不再整包失败。
+6. 输出格式由 .rar 改为 .7z（RAR 格式无法在不依赖 WinRAR 的前提下生成）。
+7. 压缩级别由 py7zr 默认的 7|EXTREME 改为 LZMA2 1 级，速度约快 3 倍、体积约大 38%。
+
+六、源码与重新打包
+源码 folder-encrypt.py，打包配置 folder-encrypt.spec。
+重新打包命令：
+    py -m PyInstaller --noconfirm --onefile --console --name folder-encrypt ^
+        --distpath dist --workpath build --specpath . ^
+        --hidden-import backports.zstd ^
+        --add-binary "%PYTHON%\Lib\site-packages\backports\zstd\_zstd.cp313-win_amd64.pyd;backports/zstd" ^
+        --exclude-module backports.zstd._zstd ^
+        --exclude-module backports.zstd._cffi ^
+        --exclude-module backports.zstd._zstd_cffi ^
+        folder-encrypt.py
+注意：--add-binary 与三个 --exclude-module 不能省。py7zr 依赖的 backports.zstd 里
+带了一份纯 Python 回退实现，打包时会盖掉编译版，导致 exe 一运行就报
+No module named 'backports.zstd._zstd_cffi'。
+
+七、本文件校验
+SHA256  87C5614007A2BCC90DCE02CB13C73CB5ABD6D2833EEC71BA1CE2B7775150D0FC
+（对应 folder-encrypt.exe，2026-09-23 提速版）

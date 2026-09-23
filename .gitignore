@@ -1,0 +1,15 @@
+# 打包产物与临时文件
+dist/
+build/
+__pycache__/
+*.pyc
+
+# 可执行文件走 Releases，不进仓库
+folder-encrypt.exe
+
+# 测试用的压缩包
+*.7z
+*.7z.part
+
+# 源码副本，避免误提交
+folder-encrypt.orig.py
