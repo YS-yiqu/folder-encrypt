@@ -44,13 +44,16 @@ jobs:
 
       - name: 自检（能压、能解、不输密码看不到文件清单）
         shell: pwsh
+        env:
+          # 运行器是英文环境，Python 默认按 cp1252 输出，打中文会崩
+          PYTHONIOENCODING: utf-8
         run: |
           New-Item -ItemType Directory -Force -Path "20260101自检\子目录" | Out-Null
           Set-Content -Path "20260101自检\子目录\样本.txt" -Value "hello folder-encrypt" -Encoding UTF8
           .\dist\folder-encrypt.exe "20260101自检"
           if (-not (Test-Path "20260101自检.7z")) { throw "没有生成压缩包" }
 
-          python -c "import py7zr; print('条目:', py7zr.SevenZipFile('20260101自检.7z','r',password='20260101').getnames())"
+          python -c "import py7zr; print('entries:', py7zr.SevenZipFile('20260101自检.7z','r',password='20260101').getnames())"
           if ($LASTEXITCODE -ne 0) { throw "用正确密码解不开" }
 
           python -c "import py7zr; py7zr.SevenZipFile('20260101自检.7z','r').getnames()"
