@@ -17,6 +17,14 @@ import sys
 
 import py7zr
 
+# 输出统一走 UTF-8。非中文 Windows 上，stdout 一旦重定向到管道或日志，
+# Python 会按本地编码（例如 cp1252）编码，打中文直接抛 UnicodeEncodeError。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 MB = 1048576
 
 # LZMA2 压缩级别：1 最快，9 最慢。py7zr 默认是 7|PRESET_EXTREME，

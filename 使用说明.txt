@@ -54,5 +54,5 @@ Windows 资源管理器自带的解压不支持加密的 7z，会报错，这点
 No module named 'backports.zstd._zstd_cffi'。
 
 七、本文件校验
-SHA256  87C5614007A2BCC90DCE02CB13C73CB5ABD6D2833EEC71BA1CE2B7775150D0FC
-（对应 folder-encrypt.exe，2026-09-23 提速版）
+SHA256  D30087869C27C2DCBEC106382021523F69CB663311B184211DFEFB1B80F7499F
+（对应 folder-encrypt.exe，2026-09-24 修正非中文系统输出乱码崩溃）
