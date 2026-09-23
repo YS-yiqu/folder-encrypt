@@ -54,5 +54,5 @@ Windows 资源管理器自带的解压不支持加密的 7z，会报错，这点
 No module named 'backports.zstd._zstd_cffi'。
 
 七、本文件校验
-SHA256  D30087869C27C2DCBEC106382021523F69CB663311B184211DFEFB1B80F7499F
-（对应 folder-encrypt.exe，2026-09-24 修正非中文系统输出乱码崩溃）
+Releases 里的 exe 由 GitHub Actions 从本仓库源码构建，校验值见该 Release 的附件 SHA256.txt。
+本机自行打包出来的 exe 与它不会完全一样（Python 补丁版本与依赖版本不同），属正常。
