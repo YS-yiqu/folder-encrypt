@@ -1,0 +1,86 @@
+name: 构建
+
+# 推 v 开头的标签就自动打包并发布；也可以在 Actions 页面手动点一下跑。
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install py7zr pyinstaller
+
+      - name: 打包 exe
+        shell: pwsh
+        run: |
+          # py7zr 依赖的 backports.zstd 里带了一份纯 Python 回退实现，
+          # 不排除掉会盖住编译版，exe 一运行就报 _zstd_cffi 找不到。
+          $zstdDir = python -c "import backports.zstd, os; print(os.path.dirname(backports.zstd.__file__))"
+          $pyd = Get-ChildItem -Path $zstdDir -Filter "_zstd.*.pyd" | Select-Object -First 1
+          Write-Host "zstd 编译版: $($pyd.FullName)"
+          python -m PyInstaller --noconfirm --onefile --console --name folder-encrypt `
+            --distpath dist --workpath build --specpath build `
+            --hidden-import backports.zstd `
+            --add-binary "$($pyd.FullName);backports/zstd" `
+            --exclude-module backports.zstd._zstd `
+            --exclude-module backports.zstd._cffi `
+            --exclude-module backports.zstd._zstd_cffi `
+            folder-encrypt.py
+
+      - name: 自检（能压、能解、不输密码看不到文件清单）
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "20260101自检\子目录" | Out-Null
+          Set-Content -Path "20260101自检\子目录\样本.txt" -Value "hello folder-encrypt" -Encoding UTF8
+          .\dist\folder-encrypt.exe "20260101自检"
+          if (-not (Test-Path "20260101自检.7z")) { throw "没有生成压缩包" }
+
+          python -c "import py7zr; print('条目:', py7zr.SevenZipFile('20260101自检.7z','r',password='20260101').getnames())"
+          if ($LASTEXITCODE -ne 0) { throw "用正确密码解不开" }
+
+          python -c "import py7zr; py7zr.SevenZipFile('20260101自检.7z','r').getnames()"
+          if ($LASTEXITCODE -eq 0) { throw "不输密码竟然能列出文件清单" }
+
+          Write-Host "自检通过：能压能解，不输密码看不到文件清单"
+          exit 0
+
+      - name: 生成校验值
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist\folder-encrypt.exe -Algorithm SHA256).Hash
+          "SHA256  $h" | Set-Content -Path dist\SHA256.txt -Encoding UTF8
+          Get-Content dist\SHA256.txt
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: folder-encrypt
+          path: |
+            dist/folder-encrypt.exe
+            dist/SHA256.txt
+
+      - name: 发布到 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ github.ref_name }} `
+            dist/folder-encrypt.exe dist/SHA256.txt `
+            --title "${{ github.ref_name }}" `
+            --notes "自动构建产物，校验值见 SHA256.txt。"
